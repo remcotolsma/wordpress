@@ -74,6 +74,37 @@ function current_time( $type, $gmt = 0 ) {
 }
 
 /**
+ * Retrieve timezone.
+ *
+ * @return DateTimeZone
+ */
+function wp_timezone() {
+	$timezone_string = get_option( 'timezone_string' );
+	
+	if ( ! empty( $timezone_string ) ) {
+		return new DateTimeZone( $timezone_string );
+	}
+	
+	$gmt_offset = get_option( 'gmt_offset' );
+	$hours      = (int) $gmt_offset;
+	$minutes    = abs( ( $gmt_offset - (int) $gmt_offset ) * 60 );
+	$offset     = sprintf( '%+03d:%02d', $hours, $minutes );
+	
+	/**
+	 * Offset values as timezone parameter are supported since PHP 5.5.10.
+	 *
+	 * @link http://php.net/manual/en/datetimezone.construct.php
+	 */
+	if ( version_compare( PHP_VERSION, '5.5.10', '<' ) ) {
+		$date = new DateTime( $offset );
+
+		return $date->getTimezone();
+	}
+
+	return new DateTimeZone( $offset );
+}
+
+/**
  * Retrieve the date in localized format, based on a sum of Unix timestamp and
  * timezone offset in seconds.
  *
@@ -106,41 +137,55 @@ function date_i18n( $dateformatstring, $timestamp_with_offset = false, $gmt = fa
 	 */
 	$req_format = $dateformatstring;
 
-	if ( ( ! empty( $wp_locale->month ) ) && ( ! empty( $wp_locale->weekday ) ) ) {
-		$datemonth            = $wp_locale->get_month( date( 'm', $i ) );
-		$datemonth_abbrev     = $wp_locale->get_month_abbrev( $datemonth );
-		$dateweekday          = $wp_locale->get_weekday( date( 'w', $i ) );
-		$dateweekday_abbrev   = $wp_locale->get_weekday_abbrev( $dateweekday );
-		$datemeridiem         = $wp_locale->get_meridiem( date( 'a', $i ) );
-		$datemeridiem_capital = $wp_locale->get_meridiem( date( 'A', $i ) );
-		$dateformatstring     = ' ' . $dateformatstring;
-		$dateformatstring     = preg_replace( '/([^\\\])D/', "\\1" . backslashit( $dateweekday_abbrev ), $dateformatstring );
-		$dateformatstring     = preg_replace( '/([^\\\])F/', "\\1" . backslashit( $datemonth ), $dateformatstring );
-		$dateformatstring     = preg_replace( '/([^\\\])l/', "\\1" . backslashit( $dateweekday ), $dateformatstring );
-		$dateformatstring     = preg_replace( '/([^\\\])M/', "\\1" . backslashit( $datemonth_abbrev ), $dateformatstring );
-		$dateformatstring     = preg_replace( '/([^\\\])a/', "\\1" . backslashit( $datemeridiem ), $dateformatstring );
-		$dateformatstring     = preg_replace( '/([^\\\])A/', "\\1" . backslashit( $datemeridiem_capital ), $dateformatstring );
-
-		$dateformatstring = substr( $dateformatstring, 1, strlen( $dateformatstring ) - 1 );
+	$datetime = date_create( date( 'Y-m-d H:i:s', $timestamp_with_offset ), wp_timezone() );
+	
+	if ( false === $datetime ) {
+		return false;
 	}
-	$timezone_formats    = array( 'P', 'I', 'O', 'T', 'Z', 'e' );
-	$timezone_formats_re = implode( '|', $timezone_formats );
-	if ( preg_match( "/$timezone_formats_re/", $dateformatstring ) ) {
-		$timezone_string = get_option( 'timezone_string' );
-		if ( $timezone_string ) {
-			$timezone_object = timezone_open( $timezone_string );
-			$date_object     = date_create( null, $timezone_object );
-			foreach ( $timezone_formats as $timezone_format ) {
-				if ( false !== strpos( $dateformatstring, $timezone_format ) ) {
-					$formatted        = date_format( $date_object, $timezone_format );
-					$dateformatstring = ' ' . $dateformatstring;
-					$dateformatstring = preg_replace( "/([^\\\])$timezone_format/", "\\1" . backslashit( $formatted ), $dateformatstring );
-					$dateformatstring = substr( $dateformatstring, 1, strlen( $dateformatstring ) - 1 );
-				}
+
+	if ( ( ! empty( $wp_locale->month ) ) && ( ! empty( $wp_locale->weekday ) ) ) {
+		$month   = $wp_locale->get_month( $datetime->format( 'm' ) );
+		$weekday = $wp_locale->get_weekday( $datetime->format( 'w' ) );
+
+		$format_length = strlen( $req_format );
+
+		$new_format = '';
+
+		for ( $i = 0; $i < $format_length; $i++ ) {
+			switch ( $req_format[ $i ] ) {
+				case 'D':
+					$new_format .= backslashit( $wp_locale->get_weekday_abbrev( $weekday ) );
+					break;
+				case 'F':
+					$new_format .= backslashit( $month );
+					break;
+				case 'l':
+					$new_format .= backslashit( $weekday );
+					break;
+				case 'M':
+					$new_format .= backslashit( $wp_locale->get_month_abbrev( $month ) );
+					break;
+				case 'a':
+					$new_format .= backslashit( $wp_locale->get_meridiem( $datetime->format( 'a' ) ) );
+					break;
+				case 'A':
+					$new_format .= backslashit( $wp_locale->get_meridiem( $datetime->format( 'A' ) ) );
+					break;
+				case '\\':
+					$new_format .= $format[ $i ];
+
+					if ( $i < $format_length ) {
+						$i++;
+					}
+					// no break
+				default:
+					$new_format .= $format[ $i ];
+					break;
 			}
 		}
 	}
-	$j = @date( $dateformatstring, $i );
+
+	$j = $datetime->format( $new_format );
 
 	/**
 	 * Filters the date formatted based on the locale.
