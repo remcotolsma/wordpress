@@ -67,4 +67,12 @@ class Tests_Date_I18n extends WP_UnitTestCase {
 
 		$this->assertEquals( '2012-12-01 00:00:00 CST -06:00 America/Regina', date_i18n( 'Y-m-d H:i:s T P e', strtotime( '2012-12-01 00:00:00' ) ) );
 	}
+
+	/**
+	 * @link https://core.trac.wordpress.org/ticket/43530
+	 * @ticket 43530
+	 */
+	public function test_swatch_internet_time_with_wp_timestamp() {
+		$this->assertEquals( date( 'B' ), date_i18n( 'B' ) );
+	}
 }
