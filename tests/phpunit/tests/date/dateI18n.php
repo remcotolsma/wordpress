@@ -73,6 +73,9 @@ class Tests_Date_I18n extends WP_UnitTestCase {
 	 * @ticket 43530
 	 */
 	public function test_swatch_internet_time_with_wp_timestamp() {
+		update_option( 'gmt_offset', -6 );
+		update_option( 'timezone_string', 'America/Regina' );
+
 		$this->assertEquals( date( 'B' ), date_i18n( 'B' ) );
 	}
 }
