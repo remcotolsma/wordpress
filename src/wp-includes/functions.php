@@ -137,10 +137,10 @@ function date_i18n( $dateformatstring, $timestamp_with_offset = false, $gmt = fa
 	 */
 	$req_format = $dateformatstring;
 
-	$datetime = date_create( date( 'Y-m-d H:i:s', $timestamp_with_offset ), wp_timezone() );
+	$datetime = date_create( date( 'Y-m-d H:i:s', $i ), wp_timezone() );
 	
 	if ( false === $datetime ) {
-		return false;
+		return '';
 	}
 
 	if ( ( ! empty( $wp_locale->month ) ) && ( ! empty( $wp_locale->weekday ) ) ) {
@@ -172,14 +172,14 @@ function date_i18n( $dateformatstring, $timestamp_with_offset = false, $gmt = fa
 					$new_format .= backslashit( $wp_locale->get_meridiem( $datetime->format( 'A' ) ) );
 					break;
 				case '\\':
-					$new_format .= $format[ $i ];
+					$new_format .= $req_format[ $i ];
 
 					if ( $i < $format_length ) {
 						$i++;
 					}
 					// no break
 				default:
-					$new_format .= $format[ $i ];
+					$new_format .= $req_format[ $i ];
 					break;
 			}
 		}
