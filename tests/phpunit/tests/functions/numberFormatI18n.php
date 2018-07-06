@@ -46,4 +46,29 @@ class Tests_Functions_Number_Format_I18n extends WP_UnitTestCase {
 		$this->assertEquals( '123,457', number_format_i18n( 123456.789, 0 ) );
 		$this->assertEquals( '123,456.7890', number_format_i18n( 123456.789, -4 ) );
 	}
+
+	/**
+	 * Test multiybte format of locale.
+	 *
+	 * Multibyte decimal point and thousands separator in `number_format` are suported since PHP 5.4.
+	 * @link http://php.net/number_format
+	 *
+	 * Therefor this test will fail on PHP < 5.4 with incorrect implemented `number_format_i18n` function.
+	 */
+	public function test_multibyte_format_of_locale() {
+		$decimal_point = $GLOBALS['wp_locale']->number_format['decimal_point'];
+		$thousands_sep = $GLOBALS['wp_locale']->number_format['thousands_sep'];
+
+		$GLOBALS['wp_locale']->number_format['decimal_point'] = 'decimal_point';
+		$GLOBALS['wp_locale']->number_format['thousands_sep'] = 'thousands_sep';
+
+		$actual_1 = number_format_i18n( 123456.789, 0 );
+		$actual_2 = number_format_i18n( 123456.789, 4 );
+
+		$GLOBALS['wp_locale']->number_format['decimal_point'] = $decimal_point;
+		$GLOBALS['wp_locale']->number_format['thousands_sep'] = $thousands_sep;
+
+		$this->assertEquals( '123thousands_sep457', $actual_1 );
+		$this->assertEquals( '123thousands_sep456decimal_point7890', $actual_2 );
+	}
 }
